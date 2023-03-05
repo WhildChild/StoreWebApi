@@ -18,21 +18,18 @@ namespace StoreWebApi.Controllers
 
         [HttpGet]
         [Route("GetAllCustomers")]
-        public IActionResult GetAllCustomers()
+        public async Task<IActionResult> GetAllCustomers()
         {
-            var result = _customerService.GetAllCustomers();
-            if (result == null || result.Count>0)
-            {
-                return Ok(result);
-            }
-            return NotFound(new { Message = "В базе данных нет ни одного клиента" });
+            var result = await _customerService.GetAllCustomers();
+
+            return Ok(result);
         }
 
         [HttpGet]
         [Route("GetCustomerById")]
-        public IActionResult GetCustomerById(int id)
+        public async Task<IActionResult> GetCustomerById(int id)
         {
-            var result = _customerService.GetCustomerById(id);
+            var result = await _customerService.GetCustomerById(id);
             if (result != null)
             {
                 return Ok(result);
@@ -40,26 +37,24 @@ namespace StoreWebApi.Controllers
             return NotFound(new { Message = $"В базе данных нет ни одного пользователя с Id = {id}" });
         }
 
-
         [HttpPost]
         [Route("CreateCustomer")]
-        public IActionResult CreateCustomer([FromBody]Customer customer)
+        public async Task<IActionResult> CreateCustomer([FromBody] Customer customer)
         {
             ValidateCustomerModel(customer);
             if (ModelState.ErrorCount > 0)
             {
                 return this.GetBadRequest("Не корректно введены данные пользователя");
             }
-            _customerService.CreateCustomer(customer);
-            return Ok(new {message = "Создан новый клиент"});
+            await _customerService.CreateCustomer(customer);
+            return Ok(new { message = "Создан новый клиент" });
         }
 
-        //Для валидации имени так же можно использовать регулярные выражения (не хватило времени)
         private void ValidateCustomerModel(Customer customer)
         {
             if (customer.Name.Length > 50)
             {
-                ModelState.AddModelError("IncorrectName",$"Слишком длинное имя клиента. Максимальная длинна 50 символов{Environment.NewLine}");
+                ModelState.AddModelError("IncorrectName", $"Слишком длинное имя клиента. Максимальная длинна 50 символов{Environment.NewLine}");
             }
 
             if (customer.TelephoneNumber.Length > 12 || !customer.TelephoneNumber.StartsWith("+7"))

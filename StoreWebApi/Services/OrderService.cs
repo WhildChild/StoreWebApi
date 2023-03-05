@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using StoreWebApi.Helpers;
 using StoreWebApi.Models;
 
@@ -19,28 +20,28 @@ namespace StoreWebApi.Services
             _productService= productService;
         }
 
-        public List<Order>? GetOrdersByCustomerId(int customerId)
+        public async Task<IReadOnlyCollection<Order>> GetOrdersByCustomerId(int customerId)
         {
-            List<Order>? orders;
+            IReadOnlyCollection<Order>? orders;
             string cacheKey = $"{CacheKeys.OrdersByCustomerId}{customerId}";
 
             if (!_cache.TryGetValue(cacheKey, out orders))
             {
-                orders = _dbContext.Orders.ToList().
+                orders = await _dbContext.Orders.
                     Where(x => x.CustomerId == customerId).
                     OrderBy(x=>x.CreatedDate).
-                    ToList();
+                    ToListAsync();
+
                 _cache.Set(CacheKeys.OrdersByCustomerId, orders,_cacheEntryOptions);
             }
 
-            return orders;
+            return orders ?? new List<Order>();
         }
 
-
-        public List<Order>? GetOrdersByCustomerId(int customerId, DateTime? dateFrom, DateTime? dateTo)
+        public async Task<IReadOnlyCollection<Order>> GetOrdersByCustomerId(int customerId, DateTime? dateFrom, DateTime? dateTo)
         {
-            var orders = GetOrdersByCustomerId(customerId);
-            if (orders != null && orders.Any())
+            var orders = await GetOrdersByCustomerId(customerId);
+            if (orders.Any())
             {
                 if (dateFrom != null)
                 {
@@ -54,30 +55,33 @@ namespace StoreWebApi.Services
             return orders;
         }
 
-        public Order? GetOrderById(int id) 
+        public async Task<Order?> GetOrderById(int id) 
         {
             Order? order;
             string cacheKey = $"{CacheKeys.OrderById}{id}";
             if (!_cache.TryGetValue(cacheKey, out order))
             {
-                order = _dbContext.Orders.FirstOrDefault(x => x.Id == id); 
+                order = await _dbContext.Orders.FirstOrDefaultAsync(x => x.Id == id); 
                 _cache.Set(cacheKey, order, _cacheEntryOptions);
             }
             return order;
         }
-        public List<OrderProduct>? GetOrderProductsByOrderId(int id)
+
+        public async Task<IReadOnlyCollection<OrderProduct>> GetOrderProductsByOrderId(int id)
         {
             List<OrderProduct>? orderProducts;
             string cacheKey = $"{CacheKeys.OrderById}{id}";
+
             if (!_cache.TryGetValue(cacheKey, out orderProducts))
             {
-                orderProducts = _dbContext.OrderProducts.ToList().Where(x => x.OrderId == id).ToList();
+                orderProducts = await _dbContext.OrderProducts.Where(x => x.OrderId == id).ToListAsync();
                 _cache.Set(cacheKey, orderProducts, _cacheEntryOptions);
             }
-            return orderProducts;
+
+            return orderProducts ?? new List<OrderProduct>();
         }
 
-        public void CreateOrder(List<Product>products, int customerId)
+        public async Task CreateOrder(List<Product>products, int customerId)
         {
             Order order = new Order()
             {
@@ -86,22 +90,21 @@ namespace StoreWebApi.Services
             };
 
             _dbContext.Orders.Add(order);
-            _dbContext.SaveChanges();
+           await _dbContext.SaveChangesAsync();
 
-            AddProductsToOrder(products, order.Id);
+           await AddProductsToOrder(products, order.Id);
         }
 
-        private void AddProductsToOrder(List<Product> products, int orderId)
+        private async Task AddProductsToOrder(List<Product> products, int orderId)
         {
             int positionId = 0;
             var productIds = products.Select(x=> x.Id).ToList();
-            var productsDb = _dbContext.Products.Where(x=> productIds.Contains(x.Id)).ToList(); 
+            var productsDb = await _dbContext.Products.Where(x=> productIds.Contains(x.Id)).ToListAsync(); 
 
             foreach(var product in products) 
             {
                 positionId++;
                 var productDb = productsDb.Where(x=>x.Id== product.Id).First();
-
                 OrderProduct orderProduct = new OrderProduct()
                 {
                     PositionId= positionId,
@@ -113,11 +116,12 @@ namespace StoreWebApi.Services
 
                 _dbContext.OrderProducts.Add(orderProduct);
             }
+
             _dbContext.SaveChanges();
             ChangeProductsCount(products, productsDb);
         }
 
-        private void ChangeProductsCount(List<Product> products, List<ProductDb> productsDb) 
+        private async Task ChangeProductsCount(List<Product> products, List<ProductDb> productsDb) 
         {
             foreach (ProductDb productDb in productsDb)
             {
@@ -127,7 +131,7 @@ namespace StoreWebApi.Services
                 _dbContext.Products.Update(productDb);
                 _productService.UpdateProductCache(productDb);
             }
-            _dbContext.SaveChanges();
+           await _dbContext.SaveChangesAsync();
         }
     }
 }

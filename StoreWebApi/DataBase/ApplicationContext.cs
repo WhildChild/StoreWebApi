@@ -10,7 +10,6 @@ public class ApplicationContext : DbContext
         Database.EnsureCreated();
     }
          
-
     public DbSet<CustomerDb> Customers { get; set; }
     public DbSet<Order> Orders { get; set; }
     public DbSet<Category> Categories { get; set; }

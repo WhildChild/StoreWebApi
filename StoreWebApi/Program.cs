@@ -29,8 +29,6 @@ IServiceCollection RegisterServices(IServiceCollection services)
     services.AddEndpointsApiExplorer();
     services.AddSwaggerGen();
     services.AddDbContext<ApplicationContext>();
-    
-
     services.AddTransient<ProductService>();
     services.AddTransient<CustomerService>();
     services.AddTransient<OrderService>();

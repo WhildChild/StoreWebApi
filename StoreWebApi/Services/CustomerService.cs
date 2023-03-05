@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using StoreWebApi.Helpers;
 using StoreWebApi.Models;
 
@@ -8,8 +9,8 @@ namespace StoreWebApi.Services
     {
         private readonly ApplicationContext _dbContext;
         private readonly IMemoryCache _cache;
-
         private readonly MemoryCacheEntryOptions cacheEntryOptions;
+
         public CustomerService(ApplicationContext context, IMemoryCache memoryCache) 
         {
             _dbContext = context;
@@ -17,29 +18,28 @@ namespace StoreWebApi.Services
             cacheEntryOptions = new MemoryCacheEntryOptions().SetSlidingExpiration(TimeSpan.FromHours(1));
         }
 
-
-        public List<CustomerDb>? GetAllCustomers()
+        public async Task<IReadOnlyCollection<CustomerDb>?> GetAllCustomers()
         {
-            List<CustomerDb>? customers;
+           IReadOnlyCollection<CustomerDb>? customers;
 
             if (!_cache.TryGetValue(CacheKeys.AllCustomers, out customers))
             {
-                customers = GetAllCustomersFromDB();
+                customers = await GetAllCustomersFromDB();
 
                 _cache.Set(CacheKeys.AllCustomers, customers, cacheEntryOptions);
             }
 
-            return customers;
+            return customers ?? new List<CustomerDb>();
         }
 
-        public CustomerDb? GetCustomerById(int id) 
+        public async Task<CustomerDb?> GetCustomerById(int id) 
         {
             CustomerDb? customer;
             string cacheKey = $"{CacheKeys.CustomerById}{id}";
 
             if (!_cache.TryGetValue(cacheKey, out customer))
             {
-                customer = _dbContext.Customers.SingleOrDefault(x => x.Id == id); 
+                customer = await _dbContext.Customers.SingleOrDefaultAsync(x => x.Id == id); 
 
                 _cache.Set(CacheKeys.AllCustomers, customer, cacheEntryOptions);
             }
@@ -47,7 +47,7 @@ namespace StoreWebApi.Services
             return customer;
         }
 
-        public void CreateCustomer(Customer customer)
+        public async Task CreateCustomer(Customer customer)
         {
             CustomerDb customerDb = new CustomerDb()
             {
@@ -58,22 +58,23 @@ namespace StoreWebApi.Services
             _dbContext.Customers.Add(customerDb);
             _dbContext.SaveChanges();
 
-            UpdateCustomersCache();
+           await UpdateCustomersCache();
         }
 
-        private void UpdateCustomersCache()
+        private async Task UpdateCustomersCache()
         {
-            List<CustomerDb> customers;
+            IReadOnlyCollection<CustomerDb>? customers;
             string cacheKey = $"{CacheKeys.AllCustomers}";
+
             if (_cache.TryGetValue(cacheKey,out customers))
             {
-                customers = GetAllCustomersFromDB();
+                customers = await GetAllCustomersFromDB();
                 _cache.Set(cacheKey, customers, cacheEntryOptions);
             }
         }
-        private List<CustomerDb> GetAllCustomersFromDB()
+        private async Task<IReadOnlyCollection<CustomerDb>> GetAllCustomersFromDB()
         {
-            return _dbContext.Customers.ToList(); 
+            return await _dbContext.Customers.ToListAsync(); 
         }
     }
 }

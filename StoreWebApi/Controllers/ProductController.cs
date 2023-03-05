@@ -13,12 +13,12 @@ namespace StoreWebApi.Controllers
         private readonly ProductService _productService;
         public ProductController(ProductService productService)
         {
-            _productService= productService;
+            _productService = productService;
         }
 
         [HttpGet]
         [Route("GetProducts")]
-        public IActionResult GetProducts(int categoryId=0, bool isOnlyInStock = false,double minPrice = 0, double maxPrice = 0)
+        public async Task<IActionResult> GetProducts(int categoryId = 0, bool isOnlyInStock = false,double minPrice = 0, double maxPrice = 0)
         { 
             ValidateParameters(categoryId,minPrice,maxPrice);
             if (ModelState.ErrorCount> 0)
@@ -26,13 +26,8 @@ namespace StoreWebApi.Controllers
                 return this.GetBadRequest("Не корректно переданы параметры запроса");
             }
 
-            var products = _productService.GetProducts(categoryId,isOnlyInStock,minPrice,maxPrice);
-
-            if (products != null && products.Count>0)
-            {
-                return Ok(products);
-            }
-            return NotFound("По заданным критериям не удалось найти ни одного товара");
+            var products = await _productService.GetProducts(categoryId,isOnlyInStock,minPrice,maxPrice);
+            return Ok(products);
         }
 
         private void ValidateParameters(int categoryId, double minPrice, double maxPrice ) 

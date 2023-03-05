@@ -10,7 +10,6 @@ namespace StoreWebApi.Controllers
     [ApiController]
     public class OrderController : ControllerBase
     {
-
         private readonly OrderService _orderService;
         private readonly ProductService _productService;
         private readonly CustomerService _customerService;
@@ -24,22 +23,19 @@ namespace StoreWebApi.Controllers
 
         [HttpGet]
         [Route("GetOrdersByCustomerId")]
-        public IActionResult GetOrdersByCustomerId(int customerId, DateTime? dateFrom, DateTime? dateTo)
+        public async Task<IActionResult> GetOrdersByCustomerId(int customerId, DateTime? dateFrom, DateTime? dateTo)
         {
-            var result = _orderService.GetOrdersByCustomerId(customerId,dateFrom,dateTo);
-            if (result != null && result.Count > 0)
-            {
-                return Ok(result);
-            }
-            return NotFound(new { Message = $"Не найдено ни одного заказа, для клиента с id = {customerId}" });
+            var result = await _orderService.GetOrdersByCustomerId(customerId,dateFrom,dateTo);
+
+            return Ok(result);
         }
 
         [HttpGet]
         [Route("GetOrderById")]
-        public IActionResult GetOrderById(int id)
+        public async Task<IActionResult> GetOrderById(int id)
         {
-            var order =_orderService.GetOrderById(id);
-            var orderProducts = _orderService.GetOrderProductsByOrderId(id);
+            var order = await _orderService.GetOrderById(id);
+            var orderProducts = await _orderService.GetOrderProductsByOrderId(id);
             if (order != null && orderProducts !=null)
             {
                 return Ok(new 
@@ -53,7 +49,7 @@ namespace StoreWebApi.Controllers
 
         [HttpPost]
         [Route("CreateOrder")]
-        public IActionResult CreateOrder([FromBody] List<Product>productsList, int customerId)
+        public async Task<IActionResult> CreateOrder([FromBody] List<Product>productsList, int customerId)
         {
             ValidateProductList(productsList);
             ValidateCustomer(customerId);
@@ -63,7 +59,7 @@ namespace StoreWebApi.Controllers
                 return this.GetBadRequest("Не корректно введены параметры");
             }
 
-            _orderService.CreateOrder(productsList,customerId);
+            await _orderService.CreateOrder(productsList,customerId);
             return Ok();
         }
 
@@ -90,6 +86,7 @@ namespace StoreWebApi.Controllers
                 }
             }
         }
+
         private void ValidateCustomer(int customerId)
         {
             var customer = _customerService.GetCustomerById(customerId);
